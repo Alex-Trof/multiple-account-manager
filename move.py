@@ -1,11 +1,18 @@
-import win32gui
+import win32gui, win32com.client
 import pyautogui
-from pynput.mouse import Listener
+import pythoncom
+import time
+from pynput.mouse import Listener, Controller, Button
+from pynput.keyboard import Key, Listener
 import PySimpleGUI as sg
+import pywinauto
+
 
 keysList = [1, 2, 3, 4, 5, 6, 7, 8]
 textFile = "C:\\Users\\Alex\\Desktop\\Projets\\multiple-account-manager\\personnages.txt"
 startRecording = True
+click = []
+windowsList = {}
 
 layout = [
     [sg.Text('Perso principal', size =(15, 1)), sg.InputText(key=keysList[0])],
@@ -21,16 +28,46 @@ layout = [
     [sg.Button('On'), sg.Button('Off')]
 ]
 
-def on_click(x, y, button, pressed):
-    if(startRecording) :
-        print(x, y, button, pressed)
-    else :
-        return False
-
 # Charger les personnages déjà enregistrés
 file = open(textFile, "r")
 file_contents = file.read()
 personnages = file_contents.splitlines()
+
+# Récupère la list des fenêtres ouvertes
+# PB ici !
+def winEnumHandler( hwnd, ctx ):
+    if win32gui.IsWindowVisible( hwnd ):
+        windowsName = win32gui.GetWindowText( hwnd )
+        windowsList[windowsName] = hwnd
+
+win32gui.EnumWindows( winEnumHandler, None )
+
+def setWindow(persoName):
+    for key, value in windowsList.items():
+        if(persoName in key):
+            print(persoName, value)
+            shell=win32com.client.Dispatch("WScript.Shell",pythoncom.CoInitialize())
+            shell.SendKeys('%')
+            win32gui.SetForegroundWindow(value)
+
+def clique(x, y):
+    if(startRecording) :
+        print(x, y)
+        for i in range(len(personnages)):
+            if(len(personnages[i]) != 0):
+                setWindow(personnages[i])
+                time.sleep(1)
+                #pywinauto.mouse.click(button='left', coords=(x, y)) 
+        setWindow(personnages[0])  
+    else :
+        return False
+
+def on_press(key):
+    print('{0} release'.format(
+        key))
+    if key == Key.ctrl_l:
+        x,y = pyautogui.position()
+        clique(x, y)
 
 window = sg.Window("Hello World", layout, finalize=True)
 
@@ -39,8 +76,8 @@ for i in range(len(personnages)):
 
 while True:
     event, values = window.read()
-    listener = Listener(on_click=on_click)
-    
+    listener = Listener(on_press=on_press)
+
     if event == sg.WIN_CLOSED or event == 'Cancel': # if user closes window or clicks cancel
         break
 
